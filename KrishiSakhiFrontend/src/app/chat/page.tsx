@@ -1,6 +1,6 @@
 import Footer from "@/components/Footer";
-import Chat from "@/components/Chat";
 import T from "@/components/T";
+import Script from 'next/script';
 
 export default function Page() {
   return (
@@ -10,7 +10,13 @@ export default function Page() {
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl"><T k="chat_title" /></h1>
           <p className="mt-2 text-muted-foreground"><T k="chat_subtitle" /></p>
         </div>
-        <Chat />
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+          <Script
+            id="omnidimension-web-widget"
+            src="https://backend.omnidim.io/web_widget.js?secret_key=5a398918a8e14e0e9d56a0bff3027f3f"
+            async
+          />
+        </div>
       </main>
       <Footer />
     </div>

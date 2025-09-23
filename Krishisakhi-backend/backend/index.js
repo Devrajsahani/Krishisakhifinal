@@ -33,6 +33,7 @@ const startServer = async () => {
     app.use('/api', predictRoutes);
     app.use('/api', weatherRoutes);
     app.use('/api', marketRoutes);
+    // app.use('/api/activities', activityRoutes);
 
     app.get('/', (req, res) => {
       res.json({ message: 'Welcome to Krishi Sakhi Backend API!' });

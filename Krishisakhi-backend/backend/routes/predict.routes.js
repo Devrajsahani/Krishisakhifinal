@@ -1,39 +1,59 @@
-import express from "express";
-import multer from "multer";
-import axios from "axios";
-
+import express from 'express';
+import axios from 'axios';
 const router = express.Router();
-const upload = multer();
 
-const API_URL = "https://api-inference.huggingface.co/models/UtkarshSingh09/plant-disease-model";
-const HF_TOKEN = process.env.HF_TOKEN;
+// --- 💡 1. Set the URL for your Local AI Server ---
+// For best practice, move this to your .env file
+const LOCAL_AI_SERVER_URL = process.env.AI_SERVER_URL || 'http://10.1.185.89:8000/predict';
 
-router.post("/predict", upload.single("image"), async (req, res) => {
-  try {
-    console.log("📩 Received request to /api/predict", req.method, req.url);
-
-    if (!req.file) {
-      return res.status(400).json({ error: "No image uploaded" });
+// --- 💡 2. Renamed the function for clarity ---
+const callLocalAIServer = async (imageDataBuffer) => {
+    try {
+        console.log(`Forwarding request to local AI server: ${LOCAL_AI_SERVER_URL}`);
+        const response = await axios.post(
+            LOCAL_AI_SERVER_URL,
+            imageDataBuffer, // Send the raw image data
+            {
+                headers: {
+                    // This header is still needed to tell the AI server it's receiving raw binary data
+                    "Content-Type": "application/octet-stream",
+                },
+                timeout: 30000, // 30 seconds
+            }
+            // 💡 3. Authorization header is removed as it's not needed for your local server
+        );
+        return response.data;
+    } catch (error) {
+        console.error('❌ Error calling local AI server:', error.message);
+        throw new Error('Failed to get a prediction from the local AI model.');
     }
-    console.log("✅ Image file received, sending to HuggingFace API...");
+};
 
-    const response = await axios.post(
-      API_URL,
-      req.file.buffer,
-      {
-        headers: {
-          Authorization: `Bearer ${HF_TOKEN}`, // ✅ correct usage
-          "Content-Type": "application/octet-stream",
-        },
-      }
-    );
+router.post('/predict', async (req, res) => {
+    try {
+        const { imageUrl } = req.body;
+        if (!imageUrl) {
+            return res.status(400).json({ message: 'Image URL is required.' });
+        }
 
-    console.log("✅ Prediction received from HuggingFace");
-    res.json(response.data);
-  } catch (err) {
-    console.error("❌ Prediction error:", err.message);
-    res.status(500).json({ error: err.response?.data || err.message });
-  }
+        // --- Download the image from the provided URL (This part remains the same) ---
+        const imageResponse = await axios.get(imageUrl, {
+            responseType: 'arraybuffer'
+        });
+        const imageBuffer = Buffer.from(imageResponse.data);
+
+        // --- 💡 4. Call the updated function ---
+        const prediction = await callLocalAIServer(imageBuffer);
+        
+        res.status(200).json({ success: true, prediction });
+
+    } catch (error) {
+        console.error("❌ Prediction route error:", error.message);
+        if (error.isAxiosError) {
+            return res.status(400).json({ success: false, message: 'Failed to download image from the provided URL.'});
+        }
+        res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
+    }
 });
 
 export default router;
