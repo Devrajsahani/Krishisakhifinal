@@ -354,6 +354,7 @@ export const DashboardPage = () => {
     const fetchData = async () => {
       const farmerId = localStorage.getItem('farmerId');
       if (!farmerId) {
+        window.location.href = '/'; // Redirect to home if no farmerId
         setIsLoading(false);
         return;
       }
@@ -478,18 +479,25 @@ export const DashboardPage = () => {
     setIsRecording(false);
   };
 
-  const handleDiagnose = async () => {
-    if (!diagnosisImage || !farmer) return;
+  const handleDiagnose = async (imageFile: File) => {
+    if (!imageFile || !farmer) return;
+    setDiagnosisImage(imageFile); // Set the image for UI feedback
     const formData = new FormData();
-    formData.append('image', diagnosisImage);
+    formData.append('image', imageFile);
     formData.append('farmerId', farmer._id);
     try {
-      // Note: You'll need to add a 'diagnose' function to your apiService for this to work
-      const result = await apiService.diagnose(formData);
-      setDiagnosisResult(result);
+      const response = await apiService.diagnose(formData);
+      // Transform the backend response to match the UI's expected state structure
+      const transformedResult = {
+        disease: response.prediction.predicted_label.replace(/_/g, ' '), // e.g., "tomato late blight"
+        confidence: Math.round(response.prediction.confidence * 100), // e.g., 66
+        advisory: "Based on the analysis, we recommend using a suitable fungicide. For more specific advice, please consult with our AI chat.",
+      };
+      setDiagnosisResult(transformedResult);
     } catch (error) {
       console.error("Failed to diagnose:", error);
       setDiagnosisResult({
+        // Provide a fallback mock result on API failure
         disease: "AI Offline (Mock)",
         advisory: "Could not reach the AI model. This is a placeholder response.",
         confidence: 0
@@ -609,21 +617,25 @@ export const DashboardPage = () => {
                       type="file"
                       accept="image/*"
                       capture="environment"
-                      className="hidden" // Keep it hidden, we trigger with the button
+                      className="hidden" // The input is hidden and triggered by the button
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          setDiagnosisImage(file);
+                          // Automatically trigger diagnosis after a file is selected
+                          // We pass the file directly to avoid a race condition with setState
+                          handleDiagnose(file);
                         }
                       }}
                     />
-                    <Button className="bg-emerald-600 hover:bg-emerald-700 w-full" onClick={handleDiagnose}>
+                    {/* This button now just opens the file picker */}
+                    <Button className="bg-emerald-600 hover:bg-emerald-700 w-full" onClick={() => fileInputRef.current?.click()}>
                       <Camera className="mr-2 h-4 w-4" /> {t("upload_and_diagnose")}
                     </Button>
                     {diagnosisResult && (
                       <div className="rounded-lg border p-4 bg-white/70 dark:bg-zinc-900/60">
                         <div className="text-sm text-muted-foreground">{t("ai_diagnosis")}</div>
-                        <div className="mt-1 text-lg font-semibold">{diagnosisResult.disease}</div>
+                        {/* Capitalize the first letter of the disease for better presentation */}
+                        <div className="mt-1 text-lg font-semibold capitalize">{diagnosisResult.disease}</div>
                         <div className="mt-1 text-sm">AI Confidence: {diagnosisResult.confidence}%</div>
                         <div className="mt-2 text-sm">Advisory: {diagnosisResult.advisory}</div>
                         <div className="mt-3">

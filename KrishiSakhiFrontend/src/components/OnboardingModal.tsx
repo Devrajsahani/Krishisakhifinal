@@ -173,9 +173,9 @@ export default function OnboardingModal() {
 
     return (
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 rounded-full px-6 py-3 text-base md:text-lg">Get Started</Button>
-        </DialogTrigger>
+        <DialogTrigger asChild> 
+          <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 rounded-full px-6 py-3 text-base md:text-lg">Are you a farmer?</Button>
+        </DialogTrigger> 
         <DialogContent className="max-w-lg border-black/10 dark:border-white/10 backdrop-blur-xl bg-white/80 dark:bg-zinc-900/70">
           <DialogHeader>
             <div className="mx-auto h-12 w-12 grid place-content-center rounded-full bg-emerald-100 text-emerald-700"><Leaf/></div>
@@ -198,7 +198,7 @@ export default function OnboardingModal() {
             <div className="grid gap-2">
                 <Label htmlFor="crop">Primary crop</Label>
                 <Input id="crop" placeholder="Paddy, Coconut, Banana..." value={crop} onChange={(e)=>setCrop(e.target.value)} />
-                {errors.crop && <p className="text-sm text-red-600">{errors.crop}</p>}
+                {errors.crop && <p className="text-sm text-red-600">{errors.crop}</p>} 
             </div>
             <div className="grid gap-2">
                 <Label>District</Label>
@@ -230,8 +230,11 @@ export default function OnboardingModal() {
                     <SelectContent>
                         <SelectItem value="ml">Malayalam</SelectItem>
                         <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="hi">Hindi</SelectItem>
+                        <SelectItem value="ta">Tamil</SelectItem>
                     </SelectContent>
                 </Select>
+                {errors.language && <p className="text-sm text-red-600">{errors.language}</p>}
             </div>
             {message && <p className="text-sm text-center my-2">{message}</p>}
             <DialogFooter className="flex-col gap-2">

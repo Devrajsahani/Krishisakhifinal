@@ -1,57 +1,61 @@
 import express from 'express';
 import axios from 'axios';
+import multer from 'multer';
+import FormData from 'form-data'; // 1. Import the new library
+
 const router = express.Router();
 
-// --- 💡 1. Set the URL for your Local AI Server ---
-// For best practice, move this to your .env file
-const LOCAL_AI_SERVER_URL = process.env.AI_SERVER_URL || 'http://10.1.185.89:8000/predict';
+// --- Configuration ---
+const AI_SERVER_URL = process.env.AI_SERVER_URL;
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
-// --- 💡 2. Renamed the function for clarity ---
-const callLocalAIServer = async (imageDataBuffer) => {
+// --- Function to call the FastAPI server ---
+const callFastAPIServer = async (imageBuffer, originalFilename) => {
+    if (!AI_SERVER_URL) {
+        throw new Error("AI Server URL is not configured in .env");
+    }
+    
+    // 2. Create a new form data object
+    const form = new FormData();
+    // 3. Append the image buffer. The field name MUST be "file" to match the Python code.
+    form.append('file', imageBuffer, { filename: originalFilename });
+
     try {
-        console.log(`Forwarding request to local AI server: ${LOCAL_AI_SERVER_URL}`);
+        console.log(`Forwarding image to FastAPI server at ${AI_SERVER_URL}`);
         const response = await axios.post(
-            LOCAL_AI_SERVER_URL,
-            imageDataBuffer, // Send the raw image data
+            AI_SERVER_URL,
+            form,
             {
                 headers: {
-                    // This header is still needed to tell the AI server it's receiving raw binary data
-                    "Content-Type": "application/octet-stream",
+                    ...form.getHeaders(), // 4. Let the library set the correct headers
                 },
                 timeout: 30000, // 30 seconds
             }
-            // 💡 3. Authorization header is removed as it's not needed for your local server
         );
         return response.data;
     } catch (error) {
-        console.error('❌ Error calling local AI server:', error.message);
-        throw new Error('Failed to get a prediction from the local AI model.');
+        console.error('❌ Error calling FastAPI server:', error.response?.data || error.message);
+        throw new Error('Failed to get a prediction from the AI model.');
     }
 };
 
-router.post('/predict', async (req, res) => {
+// --- The Prediction Route ---
+router.post('/predict', upload.single('image'), async (req, res) => {
     try {
-        const { imageUrl } = req.body;
-        if (!imageUrl) {
-            return res.status(400).json({ message: 'Image URL is required.' });
+        if (!req.file) {
+            return res.status(400).json({ message: 'Image file is required.' });
         }
 
-        // --- Download the image from the provided URL (This part remains the same) ---
-        const imageResponse = await axios.get(imageUrl, {
-            responseType: 'arraybuffer'
-        });
-        const imageBuffer = Buffer.from(imageResponse.data);
+        const imageBuffer = req.file.buffer;
+        const originalFilename = req.file.originalname;
 
-        // --- 💡 4. Call the updated function ---
-        const prediction = await callLocalAIServer(imageBuffer);
-        
+        const prediction = await callFastAPIServer(imageBuffer, originalFilename);
+
         res.status(200).json({ success: true, prediction });
 
     } catch (error) {
         console.error("❌ Prediction route error:", error.message);
-        if (error.isAxiosError) {
-            return res.status(400).json({ success: false, message: 'Failed to download image from the provided URL.'});
-        }
         res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
     }
 });
